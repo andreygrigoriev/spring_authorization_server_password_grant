@@ -1,0 +1,32 @@
+server:
+  port: 8087
+  error:
+    include-message: always
+  servlet:
+    session:
+      cookie:
+        name: MYSESSIONID
+
+auth:
+  local-server: true
+  issuer-uri: http://127.0.0.1:${server.port}
+  jwks-uri: ${auth.issuer-uri}/oauth2/jwks
+  client-id: legacy-oauth-client
+  client-secret: secret
+  refresh-token-validity: 86400
+  access-token-validity: 43200
+  redirect-uri: https://127.0.0.1:8086/login/oauth2/code/custom
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  mvc:
+    log-request-details: true
+  datasource:
+    #Postgre
+    url: jdbc:postgresql://localhost:5432/test_oauth
+    username: postgres
+    password: 654321
+    driverClassName: org.postgresql.Driver
+  jpa:
+    generate-ddl: true

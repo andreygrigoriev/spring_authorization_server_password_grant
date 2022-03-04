@@ -1,0 +1,57 @@
+<configuration>
+
+    <property name="LOG_DIR" value="c:/temp/logs" />
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="APP" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_DIR}/app.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="AUTH_SERVER" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_DIR}/auth_server.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="debug">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="APP" />
+    </root>
+
+    <logger name="org.springframework.web.filter.CommonsRequestLoggingFilter" level="debug" additivity="false">
+        <appender-ref ref="AUTH_SERVER"/>
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.springframework.security" level="debug" additivity="false">
+        <appender-ref ref="AUTH_SERVER"/>
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.springframework.security.web" level="TRACE" additivity="false">
+        <appender-ref ref="AUTH_SERVER"/>
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.springframework.security.authentication" level="TRACE" additivity="false">
+        <appender-ref ref="AUTH_SERVER"/>
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.springframework.security.oauth2" level="TRACE" additivity="false">
+        <appender-ref ref="AUTH_SERVER"/>
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+</configuration>
