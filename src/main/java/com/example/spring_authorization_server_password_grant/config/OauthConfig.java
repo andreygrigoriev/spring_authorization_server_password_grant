@@ -20,19 +20,21 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
-import org.springframework.security.oauth2.jwt.JoseHeader;
+import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwsEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.authorization.*;
+import org.springframework.security.oauth2.server.authorization.authentication.ClientSecretAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeAuthenticationToken;
-import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
+import org.springframework.security.oauth2.server.authorization.token.*;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -96,9 +98,9 @@ public class OauthConfig {
 
    @Bean
    @SuppressWarnings("unused")
-   public OAuth2ClientAuthenticationProvider oauthClientAuthProvider(RegisteredClientRepository registeredClientRepository, OAuth2AuthorizationService oAuth2AuthorizationService) {
-      OAuth2ClientAuthenticationProvider clientAuthenticationProvider =
-            new OAuth2ClientAuthenticationProvider(
+   public ClientSecretAuthenticationProvider oauthClientAuthProvider(RegisteredClientRepository registeredClientRepository, OAuth2AuthorizationService oAuth2AuthorizationService) {
+      ClientSecretAuthenticationProvider clientAuthenticationProvider =
+            new ClientSecretAuthenticationProvider(
                   registeredClientRepository,
                   oAuth2AuthorizationService);
       clientAuthenticationProvider.setPasswordEncoder(passwordEncoder());
@@ -119,7 +121,7 @@ public class OauthConfig {
    @SuppressWarnings("unused")
    OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer() {
       return context -> {
-         JoseHeader.Builder headers = context.getHeaders();
+         JwsHeader.Builder headers = context.getHeaders();
          JwtClaimsSet.Builder claims = context.getClaims();
          OAuth2Authorization authorization = context.get(OAuth2Authorization.class);
          RegisteredClient registeredClient = context.get(RegisteredClient.class);
@@ -142,6 +144,17 @@ public class OauthConfig {
 
    @Bean
    @SuppressWarnings("unused")
+   public OAuth2TokenGenerator<OAuth2Token> oAuth2TokenGenerator(JwtEncoder jwtEncoder, OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer) {
+      JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
+      jwtGenerator.setJwtCustomizer(jwtCustomizer);
+      OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
+//        accessTokenGenerator.setAccessTokenCustomizer(this.accessTokenCustomizer);
+      OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
+      return new DelegatingOAuth2TokenGenerator(jwtGenerator, accessTokenGenerator, refreshTokenGenerator);
+   }
+
+   @Bean
+   @SuppressWarnings("unused")
    public JWKSource<SecurityContext> jwkSource() {
       JWKSet jwkSet = new JWKSet(generateRsa());
       return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
@@ -150,7 +163,7 @@ public class OauthConfig {
    @Bean
    @SuppressWarnings("unused")
    public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
-      return new NimbusJwsEncoder(jwkSource);
+      return new NimbusJwtEncoder(jwkSource);
    }
 
    @Bean

@@ -8,20 +8,21 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.server.authorization.oidc.authentication.OidcUserInfoAuthenticationContext;
 import org.springframework.security.oauth2.server.authorization.oidc.authentication.OidcUserInfoAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration(proxyBeanMethods = false)
-@Order(2)
-public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter {
+public class AuthorizationServerConfig {
 
    private final PasswordGrantFilter passwordGrantFilter;
 
@@ -31,8 +32,10 @@ public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter {
       this.passwordGrantFilter = passwordGrantFilter;
    }
 
-   @Override
-   protected void configure(HttpSecurity http) throws Exception {
+   @Bean
+   @Order(2)
+   @SuppressWarnings("unused")
+   public SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
       OAuth2AuthorizationServerConfigurer<HttpSecurity> authorizationServerConfigurer =
             new OAuth2AuthorizationServerConfigurer<>();
       RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
@@ -52,7 +55,6 @@ public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter {
             .anyRequest().authenticated()
             .and()
             .csrf().disable()
-//            .oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
             .apply(authorizationServerConfigurer)
             .oidc(oidc -> oidc
                   .clientRegistrationEndpoint(Customizer.withDefaults())
@@ -60,15 +62,17 @@ public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter {
             )
             .and()
             .addFilterBefore(passwordGrantFilter, AbstractPreAuthenticatedProcessingFilter.class)
-            .formLogin(Customizer.withDefaults())
-      ;
+            .exceptionHandling(exceptions ->
+                  exceptions.authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
+            );
 
+      return http.build();
    }
 
-   @Override
    @Bean
-   public AuthenticationManager authenticationManagerBean() throws Exception {
-      return super.authenticationManagerBean();
+   @SuppressWarnings("unused")
+   public AuthenticationManager authenticationManagerBean(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+      return authenticationConfiguration.getAuthenticationManager();
    }
 
 }
