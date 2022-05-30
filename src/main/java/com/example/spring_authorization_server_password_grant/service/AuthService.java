@@ -4,13 +4,9 @@ import com.example.spring_authorization_server_password_grant.config.AuthPropert
 import com.example.spring_authorization_server_password_grant.model.AppUser;
 import com.example.spring_authorization_server_password_grant.model.AppUserPrincipal;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.utils.Sets;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,13 +14,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.*;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.server.authorization.*;
 import org.springframework.security.oauth2.server.authorization.authentication.*;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
 import org.springframework.security.oauth2.server.authorization.context.ProviderContext;
 import org.springframework.security.oauth2.server.authorization.context.ProviderContextHolder;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -39,10 +35,9 @@ import java.util.*;
 @Slf4j
 public class AuthService {
    private final AuthenticationManager authenticationManager;
-   private final OAuth2ClientAuthenticationProvider oAuth2ClientAuthenticationProvider;
    private final OAuth2AuthorizationCodeRequestAuthenticationProvider oAuth2AuthorizationCodeRequestAuthenticationProvider;
    private final OAuth2AuthorizationCodeAuthenticationProvider oAuth2AuthorizationCodeAuthenticationProvider;
-   private final OAuth2AuthorizationService authorizationService;
+   private final ClientSecretAuthenticationProvider clientSecretAuthenticationProvider;
    private final AuthProperties authProperties;
    private final ObjectMapper objectMapper;
 
@@ -53,20 +48,17 @@ public class AuthService {
    @Autowired
    public AuthService(
          @Lazy AuthenticationManager authenticationManager,
-         @Qualifier("oauthClientAuthProvider") OAuth2ClientAuthenticationProvider oAuth2ClientAuthenticationProvider,
          RegisteredClientRepository registeredClientRepository,
          @Lazy OAuth2AuthorizationService authorizationService,
          @Lazy OAuth2AuthorizationConsentService authorizationConsentService,
-         OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer,
-         JwtEncoder jwtEncoder,
+         ClientSecretAuthenticationProvider clientSecretAuthenticationProvider,
+         OAuth2TokenGenerator<? extends OAuth2Token> tokenGenerator,
          AuthProperties authProperties) {
 
       this.authenticationManager = authenticationManager;
-      this.oAuth2ClientAuthenticationProvider = oAuth2ClientAuthenticationProvider;
-      this.authorizationService = authorizationService;
       this.oAuth2AuthorizationCodeRequestAuthenticationProvider = new OAuth2AuthorizationCodeRequestAuthenticationProvider(registeredClientRepository, authorizationService, authorizationConsentService);
-      this.oAuth2AuthorizationCodeAuthenticationProvider = new OAuth2AuthorizationCodeAuthenticationProvider(authorizationService, jwtEncoder);
-      oAuth2AuthorizationCodeAuthenticationProvider.setJwtCustomizer(jwtCustomizer);
+      this.clientSecretAuthenticationProvider = clientSecretAuthenticationProvider;
+      this.oAuth2AuthorizationCodeAuthenticationProvider = new OAuth2AuthorizationCodeAuthenticationProvider(authorizationService, tokenGenerator);
       this.authProperties = authProperties;
       this.objectMapper = new ObjectMapper();
    }
@@ -106,7 +98,7 @@ public class AuthService {
          OAuth2ClientAuthenticationToken clientAuthenticationToken = new OAuth2ClientAuthenticationToken(authProperties.getClientId(),
                ClientAuthenticationMethod.CLIENT_SECRET_BASIC, authProperties.getClientSecret(), params);
 
-         Authentication clientAuthenticationResult = oAuth2ClientAuthenticationProvider.authenticate(clientAuthenticationToken);
+         Authentication clientAuthenticationResult = clientSecretAuthenticationProvider.authenticate(clientAuthenticationToken);
 
          OAuth2AuthorizationCodeAuthenticationToken codeToken = new OAuth2AuthorizationCodeAuthenticationToken(
                authorizationCodeRequestAuthenticationResult.getAuthorizationCode().getTokenValue(), clientAuthenticationResult,
